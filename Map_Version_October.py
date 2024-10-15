@@ -45,6 +45,71 @@ if not data.empty:
     """
     m.get_root().html.add_child(folium.Element(heading_html))
 
+    # Create a dropdown list for selecting Province
+    province_dropdown_html = '''
+    <div style="position: fixed; top: 50px; left: 10px; z-index: 9999; background-color: white; padding: 10px;">
+        <label for="province-dropdown">Select Province:</label>
+        <select id="province-dropdown" onchange="filterTehsilByProvince()">
+            <option value="">Select Province</option>
+    '''
+
+    # Get unique province names and populate the dropdown
+    unique_provinces = data['Province'].unique()
+    for prov in unique_provinces:
+        province_dropdown_html += f'<option value="{prov}">{prov}</option>'
+
+    province_dropdown_html += '</select></div>'
+
+    # Add the province dropdown to the map
+    m.get_root().html.add_child(folium.Element(province_dropdown_html))
+
+    # Create a dropdown list for selecting Tehsil
+    tehsil_dropdown_html = '''
+    <div style="position: fixed; top: 100px; left: 10px; z-index: 9999; background-color: white; padding: 10px;">
+        <label for="tehsil-dropdown">Select Tehsil:</label>
+        <select id="tehsil-dropdown" onchange="zoomToTehsil()">
+            <option value="">Select Tehsil</option>
+    '''
+
+    # Populate the tehsil dropdown with all Tehsil names and coordinates initially
+    for tehsil_name, lat, lon, prov in zip(tehsil, data['Latitude'], data['Longitude'], province):
+        tehsil_dropdown_html += f'<option value="{lat},{lon}" data-province="{prov}">{tehsil_name}</option>'
+
+    tehsil_dropdown_html += '</select></div>'
+
+    # Add the tehsil dropdown to the map
+    m.get_root().html.add_child(folium.Element(tehsil_dropdown_html))
+
+    # JavaScript function to zoom to the selected Tehsil
+    zoom_script = '''
+    <script>
+    function zoomToTehsil() {
+        var tehsilDropdown = document.getElementById("tehsil-dropdown");
+        var coords = tehsilDropdown.value.split(',');
+        if (coords.length === 2) {
+            var lat = parseFloat(coords[0]);
+            var lon = parseFloat(coords[1]);
+            map.setView([lat, lon], 10);  // Zoom level 10 for Tehsil
+        }
+    }
+
+    function filterTehsilByProvince() {
+        var provinceDropdown = document.getElementById("province-dropdown").value;
+        var tehsilDropdown = document.getElementById("tehsil-dropdown");
+        for (var i = 0; i < tehsilDropdown.options.length; i++) {
+            var option = tehsilDropdown.options[i];
+            if (option.getAttribute('data-province') === provinceDropdown || provinceDropdown === "") {
+                option.style.display = "";  // Show the option
+            } else {
+                option.style.display = "none";  // Hide the option
+            }
+        }
+        tehsilDropdown.selectedIndex = 0;  // Reset the tehsil dropdown to 'Select Tehsil'
+    }
+    </script>
+    '''
+    m.get_root().html.add_child(folium.Element(zoom_script))
+
     # Create a MarkerCluster object for grouping the markers
     marker_cluster = MarkerCluster().add_to(m)
 
@@ -148,34 +213,10 @@ if not data.empty:
                 options: {
                     responsive: true,
                     scales: {
-                        y: {
-                            beginAtZero: true
-                        }
+                        ...
                     }
                 }
             });
-
-            new Chart(ctxPie.getContext('2d'), {
-                type: 'pie',
-                data: pieData,
-                options: {
-                    responsive: true
-                }
-            });
-        }
-
-        function showFemaleDistribution(female, rural, urban) {
-            const ruralPercentage = ((female * (rural / (rural + urban))) / female * 100).toFixed(2);
-            const urbanPercentage = ((female * (urban / (rural + urban))) / female * 100).toFixed(2);
-            document.getElementById('female-distribution').innerHTML = `
-                <b>Female Distribution:</b><br>
-                Rural: ${ruralPercentage}%<br>
-                Urban: ${urbanPercentage}%
-            `;
         }
         </script>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         ''')
-
-else:
-    print("No data with valid coordinates available.")
